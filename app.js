@@ -41,7 +41,7 @@ function render(aircraft) {
   positionedAircraft.forEach(a => {
     const p=pos(a), el=document.createElement('button');
     el.className='aircraft'; el.type='button'; el.dataset.hex=a.hex || cleanFlight(a); el.style.left=`${p.x}%`; el.style.top=`${p.y}%`; el.style.setProperty('--rotation', `${a.track || 0}deg`);
-    const type=aircraftType(a); el.style.setProperty('--aircraft-color', type==='MILITARY JET'||type==='MILITARY TRANSPORT'?'var(--orange)':type==='PRIVATE'?'#8c9b9a':'var(--green)');
+    const type=aircraftType(a); el.style.setProperty('--aircraft-color','#ffffff');
     el.innerHTML=`${aircraftIcon(type)}<span class="tag">${cleanFlight(a)}</span>`; el.setAttribute('aria-label',`Select aircraft ${cleanFlight(a)}`); el.addEventListener('click',()=>selectAircraft(a,el));
     layer.appendChild(el);
   });
