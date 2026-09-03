@@ -5,6 +5,9 @@ let latestAircraft = [];
 let deviceLocation = null;
 let geoWatchId = null;
 let geoRequestInFlight = false;
+let compassEnabled = false;
+let compassRequestInFlight = false;
+let lastCompassEventTime = 0;
 const layer = document.querySelector('#aircraftLayer');
 const radar = document.querySelector('#radar');
 const selected = { value: null };
@@ -88,6 +91,46 @@ function enableGeolocation() {
   geoRequestInFlight=true; button.textContent='LOCATING…'; status.textContent='REQUESTING'; message.textContent='';
   navigator.geolocation.getCurrentPosition(applyPosition,handleGeoError, {...options,maximumAge:0});
 }
+function normalizeHeading(value) { return (value % 360 + 360) % 360; }
+function updateCompassHeading(event) {
+  const now=performance.now();
+  if(now-lastCompassEventTime<40) return;
+  let heading;
+  if(Number.isFinite(event.webkitCompassHeading)) heading=event.webkitCompassHeading;
+  else if(Number.isFinite(event.alpha) && (event.absolute || event.type==='deviceorientationabsolute')) {
+    const screenAngle=Number.isFinite(screen.orientation?.angle) ? screen.orientation.angle : 0;
+    heading=normalizeHeading(360-event.alpha+screenAngle);
+  }
+  if(!Number.isFinite(heading)) return;
+  lastCompassEventTime=now;
+  heading=normalizeHeading(heading);
+  document.querySelector('#compassIndicator').style.setProperty('--compass-heading',`${heading}deg`);
+  document.querySelector('#compassStatus').textContent=`${Math.round(heading).toString().padStart(3,'0')}° N`;
+}
+function handleCompassError(message) {
+  compassRequestInFlight=false; compassEnabled=false;
+  document.querySelector('#compassBtn').textContent='ENABLE COMPASS';
+  document.querySelector('#compassStatus').textContent='BLOCKED';
+  document.querySelector('#compassMessage').textContent=message;
+  document.querySelector('#compassIndicator').hidden=true;
+}
+async function enableCompass() {
+  const button=document.querySelector('#compassBtn'), status=document.querySelector('#compassStatus'), message=document.querySelector('#compassMessage'), indicator=document.querySelector('#compassIndicator');
+  if(!window.isSecureContext){ handleCompassError('Safari requires HTTPS for compass access. Open the GitHub Pages link.'); return; }
+  if(compassEnabled || compassRequestInFlight) return;
+  compassRequestInFlight=true; button.textContent='REQUESTING…'; status.textContent='REQUESTING'; message.textContent='';
+  try {
+    if(typeof DeviceOrientationEvent==='undefined') throw new Error('This browser does not provide device orientation.');
+    if(typeof DeviceOrientationEvent.requestPermission==='function') {
+      const permission=await DeviceOrientationEvent.requestPermission(true);
+      if(permission!=='granted') throw new Error('Allow motion and orientation access for this site, then try again.');
+    }
+    window.addEventListener('deviceorientation',updateCompassHeading,{passive:true});
+    window.addEventListener('deviceorientationabsolute',updateCompassHeading,{passive:true});
+    compassEnabled=true; compassRequestInFlight=false; button.textContent='COMPASS ACTIVE'; status.textContent='WAITING'; indicator.hidden=false;
+    message.textContent='Hold the top of the phone toward north for a north-up heading.';
+  } catch(error) { handleCompassError(error.message || 'Compass access was unavailable.'); }
+}
 let zoomTimer;
 function applyZoom(value) { const next=Math.max(5,Math.min(100,value)); if(next===currentRange) return; updateRange(next); render(latestAircraft); clearTimeout(zoomTimer); zoomTimer=setTimeout(loadAircraft,250); }
 const pointers=new Map(); let pinchStartDistance=0; let pinchStartRange=currentRange;
@@ -96,6 +139,6 @@ radar.addEventListener('wheel',event=>{ event.preventDefault(); applyZoom(curren
 radar.addEventListener('pointerdown',event=>{ pointers.set(event.pointerId,event); radar.setPointerCapture(event.pointerId); if(pointers.size===2){pinchStartDistance=pointerDistance(); pinchStartRange=currentRange;} });
 radar.addEventListener('pointermove',event=>{ if(!pointers.has(event.pointerId)) return; pointers.set(event.pointerId,event); if(pointers.size===2 && pinchStartDistance) applyZoom(pinchStartRange*pinchStartDistance/pointerDistance()); });
 ['pointerup','pointercancel','pointerleave'].forEach(type=>radar.addEventListener(type,event=>{ pointers.delete(event.pointerId); if(pointers.size<2){pinchStartDistance=0; pinchStartRange=currentRange;} }));
-document.querySelector('#refreshBtn').addEventListener('click',loadAircraft); document.querySelector('#geoBtn').addEventListener('click',enableGeolocation); document.querySelector('#centerBtn').addEventListener('click',()=>{radar.scrollIntoView({behavior:'smooth',block:'center'});});
+document.querySelector('#refreshBtn').addEventListener('click',loadAircraft); document.querySelector('#geoBtn').addEventListener('click',enableGeolocation); document.querySelector('#compassBtn').addEventListener('click',enableCompass); document.querySelector('#centerBtn').addEventListener('click',()=>{radar.scrollIntoView({behavior:'smooth',block:'center'});});
 updateRange(currentRange);
 loadAircraft(); setInterval(loadAircraft,10000);
