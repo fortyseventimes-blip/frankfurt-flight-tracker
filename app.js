@@ -1,8 +1,10 @@
 const FRA = { lat: 50.0379, lon: 8.5622 };
+const BASE_RADAR_RANGE = 80;
 let currentRange = 80;
 let latestAircraft = [];
 let deviceLocation = null;
 let geoWatchId = null;
+let geoRequestInFlight = false;
 const layer = document.querySelector('#aircraftLayer');
 const radar = document.querySelector('#radar');
 const selected = { value: null };
@@ -30,7 +32,7 @@ function aircraftIcon(kind) {
   };
   return `<svg class="aircraft-icon" viewBox="0 0 24 24" aria-hidden="true">${paths[kind] || paths.COMMERCIAL}</svg>`;
 }
-function pos(a) { const eastNm=(a.lon-FRA.lon)*60*Math.cos(FRA.lat*Math.PI/180), northNm=(a.lat-FRA.lat)*60; return { x:50+(eastNm/currentRange)*50, y:50-(northNm/currentRange)*50 }; }
+function pos(a, range=BASE_RADAR_RANGE) { const eastNm=(a.lon-FRA.lon)*60*Math.cos(FRA.lat*Math.PI/180), northNm=(a.lat-FRA.lat)*60; return { x:50+(eastNm/range)*50, y:50-(northNm/range)*50 }; }
 function fmtAlt(v) { return typeof v === 'number' ? `${Math.round(v).toLocaleString()} FT` : 'GROUND'; }
 function fmtSpeed(v) { return typeof v === 'number' ? `${Math.round(v)} KT` : '—'; }
 function fmtHeading(v) { return typeof v === 'number' ? `${Math.round(v).toString().padStart(3,'0')}°` : '—'; }
@@ -43,7 +45,7 @@ function render(aircraft) {
   positionedAircraft.forEach(a => {
     const p=pos(a), el=document.createElement('button');
     el.className='aircraft'; el.type='button'; el.dataset.hex=a.hex || cleanFlight(a); el.style.left=`${p.x}%`; el.style.top=`${p.y}%`; el.style.setProperty('--rotation', `${a.track || 0}deg`);
-    const type=aircraftType(a); el.style.setProperty('--aircraft-color','#ffffff');
+    const type=aircraftType(a); el.style.setProperty('--aircraft-color','#ffe14a');
     el.innerHTML=`${aircraftIcon(type)}<span class="tag">${cleanFlight(a)}</span>`; el.setAttribute('aria-label',`Select aircraft ${cleanFlight(a)}`); el.addEventListener('click',()=>selectAircraft(a,el));
     layer.appendChild(el);
   });
@@ -63,9 +65,29 @@ async function loadAircraft() {
   catch(err) { render([]); label.textContent='FEED UNAVAILABLE'; status.textContent='Live ADS-B feed unavailable · no aircraft shown'; document.querySelector('.status-dot').style.background='var(--orange)'; }
   document.querySelector('#lastUpdated').textContent=new Date().toLocaleTimeString([], {hour12:false});
 }
-function renderGeoMarker() { if(!deviceLocation) return; const marker=document.querySelector('#geoMarker'), p=pos(deviceLocation), visible=p.x>=0&&p.x<=100&&p.y>=0&&p.y<=100; marker.hidden=!visible; if(visible){marker.style.left=`${p.x}%`; marker.style.top=`${p.y}%`; document.querySelector('#geoStatus').textContent='GPS ACTIVE';} else document.querySelector('#geoStatus').textContent='OUT OF RANGE'; }
-function updateRange(value) { currentRange=Math.max(5,Math.min(100,Math.round(Number(value)/5)*5)); document.querySelector('#rangeLabel').textContent=`${currentRange} NM RADIUS`; document.querySelector('#outerRange').textContent=`${currentRange} NM`; document.querySelector('#midRange').textContent=`${Math.max(1,Math.round(currentRange/2))} NM`; document.querySelector('#innerRange').textContent=`${Math.max(1,Math.round(currentRange/4))} NM`; document.querySelector('#detailRange').textContent=`${currentRange} NM`; renderGeoMarker(); }
-function enableGeolocation() { const button=document.querySelector('#geoBtn'), status=document.querySelector('#geoStatus'); if(!navigator.geolocation){status.textContent='NOT SUPPORTED'; return;} if(geoWatchId!==null) return; button.textContent='LOCATING…'; status.textContent='REQUESTING'; geoWatchId=navigator.geolocation.watchPosition(position=>{deviceLocation={lat:position.coords.latitude,lon:position.coords.longitude}; button.textContent='LOCATION ACTIVE'; renderGeoMarker();},error=>{button.textContent='USE MY LOCATION'; status.textContent=error.code===1?'PERMISSION DENIED':'UNAVAILABLE'; geoWatchId=null;},{enableHighAccuracy:true,maximumAge:10000,timeout:10000}); }
+function renderGeoMarker() { if(!deviceLocation) return; const marker=document.querySelector('#geoMarker'), p=pos(deviceLocation), visiblePos=pos(deviceLocation,currentRange), visible=visiblePos.x>=0&&visiblePos.x<=100&&visiblePos.y>=0&&visiblePos.y<=100; marker.hidden=!visible; if(visible){marker.style.left=`${p.x}%`; marker.style.top=`${p.y}%`; document.querySelector('#geoStatus').textContent='GPS ACTIVE';} else document.querySelector('#geoStatus').textContent='OUT OF RANGE'; }
+function updateRange(value) { currentRange=Math.max(5,Math.min(100,Math.round(Number(value)/5)*5)); const scale=BASE_RADAR_RANGE/currentRange; radar.style.setProperty('--aircraft-world-scale',scale.toFixed(4)); document.querySelector('#rangeLabel').textContent=`${currentRange} NM RADIUS`; document.querySelector('#outerRange').textContent=`${currentRange} NM`; document.querySelector('#midRange').textContent=`${Math.max(1,Math.round(currentRange/2))} NM`; document.querySelector('#innerRange').textContent=`${Math.max(1,Math.round(currentRange/4))} NM`; document.querySelector('#rulerMax').textContent=`${currentRange} NM`; document.querySelector('#rulerHalf').textContent=`${Math.max(1,Math.round(currentRange/2))} NM`; document.querySelector('#detailRange').textContent=`${currentRange} NM`; renderGeoMarker(); }
+function enableGeolocation() {
+  const button=document.querySelector('#geoBtn'), status=document.querySelector('#geoStatus'), message=document.querySelector('#geoMessage');
+  if(!navigator.geolocation){ status.textContent='NOT SUPPORTED'; message.textContent='This browser does not provide device location.'; return; }
+  if(!window.isSecureContext){ status.textContent='HTTPS REQUIRED'; message.textContent='Safari requires HTTPS for location. Open the GitHub Pages link, not a local HTTP address.'; return; }
+  if(geoWatchId!==null || geoRequestInFlight) return;
+  const options={enableHighAccuracy:true,maximumAge:10000,timeout:15000};
+  const applyPosition=position=>{
+    deviceLocation={lat:position.coords.latitude,lon:position.coords.longitude};
+    button.textContent='LOCATION ACTIVE'; status.textContent='GPS ACTIVE'; message.textContent=''; geoRequestInFlight=false; renderGeoMarker();
+    if(geoWatchId===null) geoWatchId=navigator.geolocation.watchPosition(applyPosition,handleGeoError,options);
+  };
+  function handleGeoError(error){
+    geoRequestInFlight=false;
+    if(error.code===1){ button.textContent='TRY AGAIN'; status.textContent='PERMISSION BLOCKED'; message.textContent='Allow Location for this site in iPhone Settings or Safari website settings, then try again.'; }
+    else if(error.code===2){ button.textContent='TRY AGAIN'; status.textContent='UNAVAILABLE'; message.textContent='Location is unavailable. Check iPhone Location Services and try again.'; }
+    else { button.textContent='TRY AGAIN'; status.textContent='TIMEOUT'; message.textContent='Location timed out. Try again from a place with a clearer GPS signal.'; }
+    if(geoWatchId!==null){ navigator.geolocation.clearWatch(geoWatchId); geoWatchId=null; }
+  }
+  geoRequestInFlight=true; button.textContent='LOCATING…'; status.textContent='REQUESTING'; message.textContent='';
+  navigator.geolocation.getCurrentPosition(applyPosition,handleGeoError, {...options,maximumAge:0});
+}
 let zoomTimer;
 function applyZoom(value) { const next=Math.max(5,Math.min(100,value)); if(next===currentRange) return; updateRange(next); render(latestAircraft); clearTimeout(zoomTimer); zoomTimer=setTimeout(loadAircraft,250); }
 const pointers=new Map(); let pinchStartDistance=0; let pinchStartRange=currentRange;
