@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#06100d" />
+    <title>Frankfurt Airspace · Live ADS-B</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <style>.aircraft{background:transparent;border:0;padding:0;color:inherit}.aircraft-link{display:inline-block;color:var(--green);font:9px var(--mono);letter-spacing:.08em;margin-top:12px;text-decoration:none}.aircraft-link:hover{text-decoration:underline}</style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="Frankfurt Airspace home">
+          <span class="brand-mark"><span></span><span></span><span></span></span>
+          <span><strong>FRANKFURT</strong><em>AIRSPACE</em></span>
+        </a>
+        <div class="live-status"><span class="status-dot"></span><span id="connectionLabel">LIVE · ADS-B.LOL</span></div>
+        <div class="top-actions"><span class="updated">UPDATED <b id="lastUpdated">--:--:--</b></span><button id="refreshBtn" class="icon-button" aria-label="Refresh aircraft data" title="Refresh now">↻</button></div>
+      </header>
+
+      <main class="dashboard">
+        <section class="intro-row">
+          <div><p class="eyebrow">REGION / EDDF · 50.0379° N, 8.5622° E</p><h1>Frankfurt airspace <span>in real time.</span></h1></div>
+          <div class="refresh-note"><span class="pulse-ring"></span><span>Auto-refreshing every 10s</span></div>
+        </section>
+
+        <section class="tracker-grid">
+          <div class="radar-panel">
+            <div class="panel-toolbar"><div><span class="section-label">AIRSPACE RADAR</span><span class="range-label">80 NM RADIUS</span></div><div class="toolbar-right"><span class="north">N <i>↑</i></span><button id="centerBtn" class="text-button">CENTER ON FRA</button></div></div>
+            <div id="radar" class="radar" aria-label="Interactive radar showing aircraft around Frankfurt Airport" role="application">
+              <div class="radar-scan"></div><div class="radar-cross vertical"></div><div class="radar-cross horizontal"></div>
+              <div class="ring ring-outer"><span>80 NM</span></div><div class="ring ring-mid"><span>40 NM</span></div><div class="ring ring-inner"><span>20 NM</span></div>
+              <div class="map-label label-north">KASSEL</div><div class="map-label label-west">KÖLN</div><div class="map-label label-east">NÜRNBERG</div><div class="map-label label-south">STUTTGART</div>
+              <div class="airport-marker" style="left:50%;top:50%"><span class="airport-cross">✦</span><span class="airport-label">FRA <small>FRANKFURT</small></span></div>
+              <div id="aircraftLayer"></div><div class="radar-coordinates">50°00' N&nbsp;&nbsp; 8°34' E</div>
+              <div class="radar-legend"><span><i class="legend-dot commercial"></i> COMMERCIAL</span><span><i class="legend-dot cargo"></i> CARGO</span><span><i class="legend-dot other"></i> OTHER</span></div>
+            </div>
+            <div class="radar-footer"><span><i class="footer-dot"></i><b id="aircraftCount">0</b> aircraft in view</span><span class="data-source">SOURCE <b>adsb.lol</b> · FREE &amp; OPEN</span></div>
+          </div>
+
+          <aside class="details-panel">
+            <div class="details-heading"><span class="section-label">SELECTED AIRCRAFT</span><span id="selectionState" class="muted">CLICK A TARGET</span></div>
+            <div id="emptyState" class="empty-state"><div class="target-icon">⌁</div><h2>Pick a flight<br /><span>to inspect it.</span></h2><p>Every target is a live aircraft position from the open ADS-B network.</p></div>
+            <div id="aircraftDetails" class="aircraft-details" hidden>
+              <div class="callsign-row"><div><span class="detail-kicker">CALLSIGN</span><h2 id="detailCallsign">—</h2><a id="detailAdsbLink" class="aircraft-link" href="https://adsb.lol/" target="_blank" rel="noopener noreferrer">VIEW ON ADSB.LOL ↗</a></div><span id="detailCategory" class="type-tag">—</span></div>
+              <div class="detail-grid"><div><span>ALTITUDE</span><b id="detailAltitude">—</b></div><div><span>GROUND SPEED</span><b id="detailSpeed">—</b></div><div><span>HEADING</span><b id="detailHeading">—</b></div><div><span>SQUAWK</span><b id="detailSquawk">—</b></div><div class="wide"><span>DISTANCE FROM FRA</span><b id="detailDistance">—</b></div></div>
+              <div class="flight-line"><span class="line-dot"></span><div><span>POSITION</span><b id="detailPosition">—</b></div></div>
+            </div>
+            <div class="details-bottom"><div class="mini-stat"><span>NETWORK</span><strong><i class="status-dot"></i> RECEIVING</strong></div><div class="mini-stat"><span>RANGE</span><strong>80 NM</strong></div></div>
+          </aside>
+        </section>
+
+        <section class="below-grid"><div class="info-block"><span class="section-label">HOW IT WORKS</span><p>Positions are queried from <a href="https://adsb.lol" target="_blank" rel="noreferrer">adsb.lol</a>, a free community ADS-B feed. Distances are calculated from the center of FRA.</p></div><div class="info-block align-right"><span class="section-label">LAST API RESPONSE</span><p id="apiStatus">Waiting for first update…</p></div></section>
+      </main>
+      <footer><span>FRANKFURT AIRSPACE / LIVE MONITOR</span><span>BUILT WITH OPEN DATA <span class="footer-symbol">✦</span></span></footer>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>
