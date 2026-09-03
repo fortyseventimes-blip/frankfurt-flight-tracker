@@ -3,6 +3,7 @@ let currentRange = 80;
 let latestAircraft = [];
 let deviceLocation = null;
 let geoWatchId = null;
+let geoRequestInFlight = false;
 const layer = document.querySelector('#aircraftLayer');
 const radar = document.querySelector('#radar');
 const selected = { value: null };
@@ -65,7 +66,27 @@ async function loadAircraft() {
 }
 function renderGeoMarker() { if(!deviceLocation) return; const marker=document.querySelector('#geoMarker'), p=pos(deviceLocation), visible=p.x>=0&&p.x<=100&&p.y>=0&&p.y<=100; marker.hidden=!visible; if(visible){marker.style.left=`${p.x}%`; marker.style.top=`${p.y}%`; document.querySelector('#geoStatus').textContent='GPS ACTIVE';} else document.querySelector('#geoStatus').textContent='OUT OF RANGE'; }
 function updateRange(value) { currentRange=Math.max(5,Math.min(100,Math.round(Number(value)/5)*5)); document.querySelector('#rangeLabel').textContent=`${currentRange} NM RADIUS`; document.querySelector('#outerRange').textContent=`${currentRange} NM`; document.querySelector('#midRange').textContent=`${Math.max(1,Math.round(currentRange/2))} NM`; document.querySelector('#innerRange').textContent=`${Math.max(1,Math.round(currentRange/4))} NM`; document.querySelector('#detailRange').textContent=`${currentRange} NM`; renderGeoMarker(); }
-function enableGeolocation() { const button=document.querySelector('#geoBtn'), status=document.querySelector('#geoStatus'); if(!navigator.geolocation){status.textContent='NOT SUPPORTED'; return;} if(geoWatchId!==null) return; button.textContent='LOCATING…'; status.textContent='REQUESTING'; geoWatchId=navigator.geolocation.watchPosition(position=>{deviceLocation={lat:position.coords.latitude,lon:position.coords.longitude}; button.textContent='LOCATION ACTIVE'; renderGeoMarker();},error=>{button.textContent='USE MY LOCATION'; status.textContent=error.code===1?'PERMISSION DENIED':'UNAVAILABLE'; geoWatchId=null;},{enableHighAccuracy:true,maximumAge:10000,timeout:10000}); }
+function enableGeolocation() {
+  const button=document.querySelector('#geoBtn'), status=document.querySelector('#geoStatus'), message=document.querySelector('#geoMessage');
+  if(!navigator.geolocation){ status.textContent='NOT SUPPORTED'; message.textContent='This browser does not provide device location.'; return; }
+  if(!window.isSecureContext){ status.textContent='HTTPS REQUIRED'; message.textContent='Safari requires HTTPS for location. Open the GitHub Pages link, not a local HTTP address.'; return; }
+  if(geoWatchId!==null || geoRequestInFlight) return;
+  const options={enableHighAccuracy:true,maximumAge:10000,timeout:15000};
+  const applyPosition=position=>{
+    deviceLocation={lat:position.coords.latitude,lon:position.coords.longitude};
+    button.textContent='LOCATION ACTIVE'; status.textContent='GPS ACTIVE'; message.textContent=''; geoRequestInFlight=false; renderGeoMarker();
+    if(geoWatchId===null) geoWatchId=navigator.geolocation.watchPosition(applyPosition,handleGeoError,options);
+  };
+  function handleGeoError(error){
+    geoRequestInFlight=false;
+    if(error.code===1){ button.textContent='TRY AGAIN'; status.textContent='PERMISSION BLOCKED'; message.textContent='Allow Location for this site in iPhone Settings or Safari website settings, then try again.'; }
+    else if(error.code===2){ button.textContent='TRY AGAIN'; status.textContent='UNAVAILABLE'; message.textContent='Location is unavailable. Check iPhone Location Services and try again.'; }
+    else { button.textContent='TRY AGAIN'; status.textContent='TIMEOUT'; message.textContent='Location timed out. Try again from a place with a clearer GPS signal.'; }
+    if(geoWatchId!==null){ navigator.geolocation.clearWatch(geoWatchId); geoWatchId=null; }
+  }
+  geoRequestInFlight=true; button.textContent='LOCATING…'; status.textContent='REQUESTING'; message.textContent='';
+  navigator.geolocation.getCurrentPosition(applyPosition,handleGeoError, {...options,maximumAge:0});
+}
 let zoomTimer;
 function applyZoom(value) { const next=Math.max(5,Math.min(100,value)); if(next===currentRange) return; updateRange(next); render(latestAircraft); clearTimeout(zoomTimer); zoomTimer=setTimeout(loadAircraft,250); }
 const pointers=new Map(); let pinchStartDistance=0; let pinchStartRange=currentRange;
