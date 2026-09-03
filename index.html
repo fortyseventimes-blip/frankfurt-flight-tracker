@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
-    <style>.aircraft{background:transparent;border:0;padding:0;color:inherit}.aircraft:before{content:none}.aircraft-icon{position:absolute;width:17px;height:17px;color:var(--aircraft-color,var(--green));transform:rotate(var(--rotation,0deg));filter:drop-shadow(0 0 4px var(--aircraft-color,var(--green)))}.aircraft-link{display:inline-block;color:var(--green);font:9px var(--mono);letter-spacing:.08em;margin-top:12px;text-decoration:none}.aircraft-link:hover{text-decoration:underline}.range-control{display:flex;align-items:center;gap:8px;color:var(--muted);font:9px var(--mono);letter-spacing:.08em}.range-control output{color:var(--green);min-width:39px}.range-control input{accent-color:var(--green);width:78px;height:14px;cursor:pointer}@media(max-width:600px){.range-control{gap:4px}.range-control input{width:52px}.toolbar-right{gap:8px}.text-button{font-size:8px}}</style>
+    <style>.aircraft{background:transparent;border:0;padding:0;color:inherit}.aircraft:before{content:none}.aircraft-icon{position:absolute;width:17px;height:17px;color:var(--aircraft-color,var(--green));transform:rotate(var(--rotation,0deg));filter:drop-shadow(0 0 4px var(--aircraft-color,var(--green)))}.aircraft-link{display:inline-block;color:var(--green);font:9px var(--mono);letter-spacing:.08em;margin-top:12px;text-decoration:none}.aircraft-link:hover{text-decoration:underline}.zoom-hint{color:var(--muted);font:9px var(--mono);letter-spacing:.08em}.radar{touch-action:none}@media(max-width:600px){.zoom-hint{display:none}.toolbar-right{gap:8px}.text-button{font-size:8px}}</style>
   </head>
   <body>
     <div class="app-shell">
@@ -30,7 +30,7 @@
 
         <section class="tracker-grid">
           <div class="radar-panel">
-            <div class="panel-toolbar"><div><span class="section-label">AIRSPACE RADAR</span><span id="rangeLabel" class="range-label">80 NM RADIUS</span></div><div class="toolbar-right"><label class="range-control" for="rangeControl"><span>RANGE</span><output id="rangeValue" for="rangeControl">80 NM</output><input id="rangeControl" type="range" min="5" max="100" step="5" value="80" aria-label="Radar range in nautical miles" /></label><span class="north">N <i>↑</i></span><button id="centerBtn" class="text-button">CENTER ON FRA</button></div></div>
+            <div class="panel-toolbar"><div><span class="section-label">AIRSPACE RADAR</span><span id="rangeLabel" class="range-label">80 NM RADIUS</span></div><div class="toolbar-right"><span class="zoom-hint">WHEEL / PINCH TO SCALE</span><span class="north">N <i>↑</i></span><button id="centerBtn" class="text-button">CENTER ON FRA</button></div></div>
             <div id="radar" class="radar" aria-label="Interactive radar showing aircraft around Frankfurt Airport" role="application">
               <div class="radar-scan"></div><div class="radar-cross vertical"></div><div class="radar-cross horizontal"></div>
               <div class="ring ring-outer"><span id="outerRange">80 NM</span></div><div class="ring ring-mid"><span id="midRange">40 NM</span></div><div class="ring ring-inner"><span id="innerRange">20 NM</span></div>

@@ -1,5 +1,6 @@
 const FRA = { lat: 50.0379, lon: 8.5622 };
 let currentRange = 80;
+let latestAircraft = [];
 const layer = document.querySelector('#aircraftLayer');
 const radar = document.querySelector('#radar');
 const selected = { value: null };
@@ -33,6 +34,7 @@ function fmtSpeed(v) { return typeof v === 'number' ? `${Math.round(v)} KT` : '�
 function fmtHeading(v) { return typeof v === 'number' ? `${Math.round(v).toString().padStart(3,'0')}°` : '—'; }
 
 function render(aircraft) {
+  latestAircraft = aircraft;
   layer.innerHTML = '';
   const positionedAircraft = aircraft.filter(a => Number.isFinite(a.lat) && Number.isFinite(a.lon));
   document.querySelector('#aircraftCount').textContent = positionedAircraft.length;
@@ -59,7 +61,15 @@ async function loadAircraft() {
   catch(err) { render([]); label.textContent='FEED UNAVAILABLE'; status.textContent='Live ADS-B feed unavailable · no aircraft shown'; document.querySelector('.status-dot').style.background='var(--orange)'; }
   document.querySelector('#lastUpdated').textContent=new Date().toLocaleTimeString([], {hour12:false});
 }
-function updateRange(value) { currentRange=Number(value); document.querySelector('#rangeValue').textContent=`${currentRange} NM`; document.querySelector('#rangeLabel').textContent=`${currentRange} NM RADIUS`; document.querySelector('#outerRange').textContent=`${currentRange} NM`; document.querySelector('#midRange').textContent=`${Math.round(currentRange/2)} NM`; document.querySelector('#innerRange').textContent=`${Math.round(currentRange/4)} NM`; document.querySelector('#detailRange').textContent=`${currentRange} NM`; }
-document.querySelector('#refreshBtn').addEventListener('click',loadAircraft); document.querySelector('#rangeControl').addEventListener('change',event=>{ updateRange(event.target.value); loadAircraft(); }); document.querySelector('#centerBtn').addEventListener('click',()=>{radar.scrollIntoView({behavior:'smooth',block:'center'});});
+function updateRange(value) { currentRange=Math.max(5,Math.min(100,Math.round(Number(value)/5)*5)); document.querySelector('#rangeLabel').textContent=`${currentRange} NM RADIUS`; document.querySelector('#outerRange').textContent=`${currentRange} NM`; document.querySelector('#midRange').textContent=`${Math.max(1,Math.round(currentRange/2))} NM`; document.querySelector('#innerRange').textContent=`${Math.max(1,Math.round(currentRange/4))} NM`; document.querySelector('#detailRange').textContent=`${currentRange} NM`; }
+let zoomTimer;
+function applyZoom(value) { const next=Math.max(5,Math.min(100,value)); if(next===currentRange) return; updateRange(next); render(latestAircraft); clearTimeout(zoomTimer); zoomTimer=setTimeout(loadAircraft,250); }
+const pointers=new Map(); let pinchStartDistance=0; let pinchStartRange=currentRange;
+function pointerDistance() { const [a,b]=[...pointers.values()]; return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY); }
+radar.addEventListener('wheel',event=>{ event.preventDefault(); applyZoom(currentRange*(event.deltaY<0?.8:1.25)); },{passive:false});
+radar.addEventListener('pointerdown',event=>{ pointers.set(event.pointerId,event); radar.setPointerCapture(event.pointerId); if(pointers.size===2){pinchStartDistance=pointerDistance(); pinchStartRange=currentRange;} });
+radar.addEventListener('pointermove',event=>{ if(!pointers.has(event.pointerId)) return; pointers.set(event.pointerId,event); if(pointers.size===2 && pinchStartDistance) applyZoom(pinchStartRange*pinchStartDistance/pointerDistance()); });
+['pointerup','pointercancel','pointerleave'].forEach(type=>radar.addEventListener(type,event=>{ pointers.delete(event.pointerId); if(pointers.size<2){pinchStartDistance=0; pinchStartRange=currentRange;} }));
+document.querySelector('#refreshBtn').addEventListener('click',loadAircraft); document.querySelector('#centerBtn').addEventListener('click',()=>{radar.scrollIntoView({behavior:'smooth',block:'center'});});
 updateRange(currentRange);
 loadAircraft(); setInterval(loadAircraft,10000);
