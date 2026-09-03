@@ -1,4 +1,5 @@
 const FRA = { lat: 50.0379, lon: 8.5622 };
+const BASE_RADAR_RANGE = 80;
 let currentRange = 80;
 let latestAircraft = [];
 let deviceLocation = null;
@@ -31,7 +32,7 @@ function aircraftIcon(kind) {
   };
   return `<svg class="aircraft-icon" viewBox="0 0 24 24" aria-hidden="true">${paths[kind] || paths.COMMERCIAL}</svg>`;
 }
-function pos(a) { const eastNm=(a.lon-FRA.lon)*60*Math.cos(FRA.lat*Math.PI/180), northNm=(a.lat-FRA.lat)*60; return { x:50+(eastNm/currentRange)*50, y:50-(northNm/currentRange)*50 }; }
+function pos(a, range=BASE_RADAR_RANGE) { const eastNm=(a.lon-FRA.lon)*60*Math.cos(FRA.lat*Math.PI/180), northNm=(a.lat-FRA.lat)*60; return { x:50+(eastNm/range)*50, y:50-(northNm/range)*50 }; }
 function fmtAlt(v) { return typeof v === 'number' ? `${Math.round(v).toLocaleString()} FT` : 'GROUND'; }
 function fmtSpeed(v) { return typeof v === 'number' ? `${Math.round(v)} KT` : '—'; }
 function fmtHeading(v) { return typeof v === 'number' ? `${Math.round(v).toString().padStart(3,'0')}°` : '—'; }
@@ -64,8 +65,8 @@ async function loadAircraft() {
   catch(err) { render([]); label.textContent='FEED UNAVAILABLE'; status.textContent='Live ADS-B feed unavailable · no aircraft shown'; document.querySelector('.status-dot').style.background='var(--orange)'; }
   document.querySelector('#lastUpdated').textContent=new Date().toLocaleTimeString([], {hour12:false});
 }
-function renderGeoMarker() { if(!deviceLocation) return; const marker=document.querySelector('#geoMarker'), p=pos(deviceLocation), visible=p.x>=0&&p.x<=100&&p.y>=0&&p.y<=100; marker.hidden=!visible; if(visible){marker.style.left=`${p.x}%`; marker.style.top=`${p.y}%`; document.querySelector('#geoStatus').textContent='GPS ACTIVE';} else document.querySelector('#geoStatus').textContent='OUT OF RANGE'; }
-function updateRange(value) { currentRange=Math.max(5,Math.min(100,Math.round(Number(value)/5)*5)); document.querySelector('#rangeLabel').textContent=`${currentRange} NM RADIUS`; document.querySelector('#outerRange').textContent=`${currentRange} NM`; document.querySelector('#midRange').textContent=`${Math.max(1,Math.round(currentRange/2))} NM`; document.querySelector('#innerRange').textContent=`${Math.max(1,Math.round(currentRange/4))} NM`; document.querySelector('#detailRange').textContent=`${currentRange} NM`; renderGeoMarker(); }
+function renderGeoMarker() { if(!deviceLocation) return; const marker=document.querySelector('#geoMarker'), p=pos(deviceLocation), visiblePos=pos(deviceLocation,currentRange), visible=visiblePos.x>=0&&visiblePos.x<=100&&visiblePos.y>=0&&visiblePos.y<=100; marker.hidden=!visible; if(visible){marker.style.left=`${p.x}%`; marker.style.top=`${p.y}%`; document.querySelector('#geoStatus').textContent='GPS ACTIVE';} else document.querySelector('#geoStatus').textContent='OUT OF RANGE'; }
+function updateRange(value) { currentRange=Math.max(5,Math.min(100,Math.round(Number(value)/5)*5)); const scale=BASE_RADAR_RANGE/currentRange; radar.style.setProperty('--aircraft-world-scale',scale.toFixed(4)); document.querySelector('#rangeLabel').textContent=`${currentRange} NM RADIUS`; document.querySelector('#outerRange').textContent=`${currentRange} NM`; document.querySelector('#midRange').textContent=`${Math.max(1,Math.round(currentRange/2))} NM`; document.querySelector('#innerRange').textContent=`${Math.max(1,Math.round(currentRange/4))} NM`; document.querySelector('#rulerMax').textContent=`${currentRange} NM`; document.querySelector('#rulerHalf').textContent=`${Math.max(1,Math.round(currentRange/2))} NM`; document.querySelector('#detailRange').textContent=`${currentRange} NM`; renderGeoMarker(); }
 function enableGeolocation() {
   const button=document.querySelector('#geoBtn'), status=document.querySelector('#geoStatus'), message=document.querySelector('#geoMessage');
   if(!navigator.geolocation){ status.textContent='NOT SUPPORTED'; message.textContent='This browser does not provide device location.'; return; }
