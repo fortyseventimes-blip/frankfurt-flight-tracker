@@ -1,6 +1,5 @@
 const FRA = { lat: 50.0379, lon: 8.5622 };
-const ADSB_API_URL = 'https://api.adsb.lol/v2/lat/50.0379/lon/8.5622/dist/80';
-const API_URL = `https://developerlab.dev/api/proxy?url=${encodeURIComponent(ADSB_API_URL)}`;
+let currentRange = 80;
 const layer = document.querySelector('#aircraftLayer');
 const radar = document.querySelector('#radar');
 const selected = { value: null };
@@ -28,7 +27,7 @@ function aircraftIcon(kind) {
   };
   return `<svg class="aircraft-icon" viewBox="0 0 24 24" aria-hidden="true">${paths[kind] || paths.COMMERCIAL}</svg>`;
 }
-function pos(a) { const eastNm=(a.lon-FRA.lon)*60*Math.cos(FRA.lat*Math.PI/180), northNm=(a.lat-FRA.lat)*60; return { x:50+(eastNm/80)*50, y:50-(northNm/80)*50 }; }
+function pos(a) { const eastNm=(a.lon-FRA.lon)*60*Math.cos(FRA.lat*Math.PI/180), northNm=(a.lat-FRA.lat)*60; return { x:50+(eastNm/currentRange)*50, y:50-(northNm/currentRange)*50 }; }
 function fmtAlt(v) { return typeof v === 'number' ? `${Math.round(v).toLocaleString()} FT` : 'GROUND'; }
 function fmtSpeed(v) { return typeof v === 'number' ? `${Math.round(v)} KT` : '—'; }
 function fmtHeading(v) { return typeof v === 'number' ? `${Math.round(v).toString().padStart(3,'0')}°` : '—'; }
@@ -54,9 +53,13 @@ function selectAircraft(a, el, scroll=true) {
 }
 async function loadAircraft() {
   const status=document.querySelector('#apiStatus'), label=document.querySelector('#connectionLabel');
-  try { const res=await fetch(API_URL,{cache:'no-store'}); if(!res.ok) throw new Error(`HTTP ${res.status}`); const data=await res.json(); const aircraft=(data.ac||[]).filter(a=>a.lat!=null&&a.lon!=null); render(aircraft); label.textContent='LIVE · ADS-B.LOL'; status.textContent=`${aircraft.length} aircraft returned · ${new Date().toLocaleTimeString()}`; document.querySelector('.status-dot').style.background='var(--green)'; }
+  const adsbApiUrl=`https://api.adsb.lol/v2/lat/50.0379/lon/8.5622/dist/${currentRange}`;
+  const apiUrl=`https://developerlab.dev/api/proxy?url=${encodeURIComponent(adsbApiUrl)}`;
+  try { const res=await fetch(apiUrl,{cache:'no-store'}); if(!res.ok) throw new Error(`HTTP ${res.status}`); const data=await res.json(); const aircraft=(data.ac||[]).filter(a=>a.lat!=null&&a.lon!=null); render(aircraft); label.textContent='LIVE · ADS-B.LOL'; status.textContent=`${aircraft.length} aircraft returned · ${new Date().toLocaleTimeString()}`; document.querySelector('.status-dot').style.background='var(--green)'; }
   catch(err) { render([]); label.textContent='FEED UNAVAILABLE'; status.textContent='Live ADS-B feed unavailable · no aircraft shown'; document.querySelector('.status-dot').style.background='var(--orange)'; }
   document.querySelector('#lastUpdated').textContent=new Date().toLocaleTimeString([], {hour12:false});
 }
-document.querySelector('#refreshBtn').addEventListener('click',loadAircraft); document.querySelector('#centerBtn').addEventListener('click',()=>{radar.scrollIntoView({behavior:'smooth',block:'center'});});
+function updateRange(value) { currentRange=Number(value); document.querySelector('#rangeValue').textContent=`${currentRange} NM`; document.querySelector('#rangeLabel').textContent=`${currentRange} NM RADIUS`; document.querySelector('#outerRange').textContent=`${currentRange} NM`; document.querySelector('#midRange').textContent=`${Math.round(currentRange/2)} NM`; document.querySelector('#innerRange').textContent=`${Math.round(currentRange/4)} NM`; document.querySelector('#detailRange').textContent=`${currentRange} NM`; }
+document.querySelector('#refreshBtn').addEventListener('click',loadAircraft); document.querySelector('#rangeControl').addEventListener('change',event=>{ updateRange(event.target.value); loadAircraft(); }); document.querySelector('#centerBtn').addEventListener('click',()=>{radar.scrollIntoView({behavior:'smooth',block:'center'});});
+updateRange(currentRange);
 loadAircraft(); setInterval(loadAircraft,10000);

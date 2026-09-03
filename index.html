@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
-    <style>.aircraft{background:transparent;border:0;padding:0;color:inherit}.aircraft:before{content:none}.aircraft-icon{position:absolute;width:17px;height:17px;color:var(--aircraft-color,var(--green));transform:rotate(var(--rotation,0deg));filter:drop-shadow(0 0 4px var(--aircraft-color,var(--green)))}.aircraft-link{display:inline-block;color:var(--green);font:9px var(--mono);letter-spacing:.08em;margin-top:12px;text-decoration:none}.aircraft-link:hover{text-decoration:underline}</style>
+    <style>.aircraft{background:transparent;border:0;padding:0;color:inherit}.aircraft:before{content:none}.aircraft-icon{position:absolute;width:17px;height:17px;color:var(--aircraft-color,var(--green));transform:rotate(var(--rotation,0deg));filter:drop-shadow(0 0 4px var(--aircraft-color,var(--green)))}.aircraft-link{display:inline-block;color:var(--green);font:9px var(--mono);letter-spacing:.08em;margin-top:12px;text-decoration:none}.aircraft-link:hover{text-decoration:underline}.range-control{display:flex;align-items:center;gap:8px;color:var(--muted);font:9px var(--mono);letter-spacing:.08em}.range-control output{color:var(--green);min-width:39px}.range-control input{accent-color:var(--green);width:78px;height:14px;cursor:pointer}@media(max-width:600px){.range-control{gap:4px}.range-control input{width:52px}.toolbar-right{gap:8px}.text-button{font-size:8px}}</style>
   </head>
   <body>
     <div class="app-shell">
@@ -30,10 +30,10 @@
 
         <section class="tracker-grid">
           <div class="radar-panel">
-            <div class="panel-toolbar"><div><span class="section-label">AIRSPACE RADAR</span><span class="range-label">80 NM RADIUS</span></div><div class="toolbar-right"><span class="north">N <i>↑</i></span><button id="centerBtn" class="text-button">CENTER ON FRA</button></div></div>
+            <div class="panel-toolbar"><div><span class="section-label">AIRSPACE RADAR</span><span id="rangeLabel" class="range-label">80 NM RADIUS</span></div><div class="toolbar-right"><label class="range-control" for="rangeControl"><span>RANGE</span><output id="rangeValue" for="rangeControl">80 NM</output><input id="rangeControl" type="range" min="5" max="100" step="5" value="80" aria-label="Radar range in nautical miles" /></label><span class="north">N <i>↑</i></span><button id="centerBtn" class="text-button">CENTER ON FRA</button></div></div>
             <div id="radar" class="radar" aria-label="Interactive radar showing aircraft around Frankfurt Airport" role="application">
               <div class="radar-scan"></div><div class="radar-cross vertical"></div><div class="radar-cross horizontal"></div>
-              <div class="ring ring-outer"><span>80 NM</span></div><div class="ring ring-mid"><span>40 NM</span></div><div class="ring ring-inner"><span>20 NM</span></div>
+              <div class="ring ring-outer"><span id="outerRange">80 NM</span></div><div class="ring ring-mid"><span id="midRange">40 NM</span></div><div class="ring ring-inner"><span id="innerRange">20 NM</span></div>
               <div class="map-label label-north">KASSEL</div><div class="map-label label-west">KÖLN</div><div class="map-label label-east">NÜRNBERG</div><div class="map-label label-south">STUTTGART</div>
               <div class="airport-marker" style="left:50%;top:50%"><span class="airport-cross">✦</span><span class="airport-label">FRA <small>FRANKFURT</small></span></div>
               <div id="aircraftLayer"></div><div class="radar-coordinates">50°00' N&nbsp;&nbsp; 8°34' E</div>
@@ -50,7 +50,7 @@
               <div class="detail-grid"><div><span>ALTITUDE</span><b id="detailAltitude">—</b></div><div><span>GROUND SPEED</span><b id="detailSpeed">—</b></div><div><span>HEADING</span><b id="detailHeading">—</b></div><div><span>SQUAWK</span><b id="detailSquawk">—</b></div><div class="wide"><span>DISTANCE FROM FRA</span><b id="detailDistance">—</b></div></div>
               <div class="flight-line"><span class="line-dot"></span><div><span>POSITION</span><b id="detailPosition">—</b></div></div>
             </div>
-            <div class="details-bottom"><div class="mini-stat"><span>NETWORK</span><strong><i class="status-dot"></i> RECEIVING</strong></div><div class="mini-stat"><span>RANGE</span><strong>80 NM</strong></div></div>
+            <div class="details-bottom"><div class="mini-stat"><span>NETWORK</span><strong><i class="status-dot"></i> RECEIVING</strong></div><div class="mini-stat"><span>RANGE</span><strong id="detailRange">80 NM</strong></div></div>
           </aside>
         </section>
 
