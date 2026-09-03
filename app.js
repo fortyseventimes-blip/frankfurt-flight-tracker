@@ -1,6 +1,8 @@
 const FRA = { lat: 50.0379, lon: 8.5622 };
 let currentRange = 80;
 let latestAircraft = [];
+let deviceLocation = null;
+let geoWatchId = null;
 const layer = document.querySelector('#aircraftLayer');
 const radar = document.querySelector('#radar');
 const selected = { value: null };
@@ -61,7 +63,9 @@ async function loadAircraft() {
   catch(err) { render([]); label.textContent='FEED UNAVAILABLE'; status.textContent='Live ADS-B feed unavailable · no aircraft shown'; document.querySelector('.status-dot').style.background='var(--orange)'; }
   document.querySelector('#lastUpdated').textContent=new Date().toLocaleTimeString([], {hour12:false});
 }
-function updateRange(value) { currentRange=Math.max(5,Math.min(100,Math.round(Number(value)/5)*5)); document.querySelector('#rangeLabel').textContent=`${currentRange} NM RADIUS`; document.querySelector('#outerRange').textContent=`${currentRange} NM`; document.querySelector('#midRange').textContent=`${Math.max(1,Math.round(currentRange/2))} NM`; document.querySelector('#innerRange').textContent=`${Math.max(1,Math.round(currentRange/4))} NM`; document.querySelector('#detailRange').textContent=`${currentRange} NM`; }
+function renderGeoMarker() { if(!deviceLocation) return; const marker=document.querySelector('#geoMarker'), p=pos(deviceLocation), visible=p.x>=0&&p.x<=100&&p.y>=0&&p.y<=100; marker.hidden=!visible; if(visible){marker.style.left=`${p.x}%`; marker.style.top=`${p.y}%`; document.querySelector('#geoStatus').textContent='GPS ACTIVE';} else document.querySelector('#geoStatus').textContent='OUT OF RANGE'; }
+function updateRange(value) { currentRange=Math.max(5,Math.min(100,Math.round(Number(value)/5)*5)); document.querySelector('#rangeLabel').textContent=`${currentRange} NM RADIUS`; document.querySelector('#outerRange').textContent=`${currentRange} NM`; document.querySelector('#midRange').textContent=`${Math.max(1,Math.round(currentRange/2))} NM`; document.querySelector('#innerRange').textContent=`${Math.max(1,Math.round(currentRange/4))} NM`; document.querySelector('#detailRange').textContent=`${currentRange} NM`; renderGeoMarker(); }
+function enableGeolocation() { const button=document.querySelector('#geoBtn'), status=document.querySelector('#geoStatus'); if(!navigator.geolocation){status.textContent='NOT SUPPORTED'; return;} if(geoWatchId!==null) return; button.textContent='LOCATING…'; status.textContent='REQUESTING'; geoWatchId=navigator.geolocation.watchPosition(position=>{deviceLocation={lat:position.coords.latitude,lon:position.coords.longitude}; button.textContent='LOCATION ACTIVE'; renderGeoMarker();},error=>{button.textContent='USE MY LOCATION'; status.textContent=error.code===1?'PERMISSION DENIED':'UNAVAILABLE'; geoWatchId=null;},{enableHighAccuracy:true,maximumAge:10000,timeout:10000}); }
 let zoomTimer;
 function applyZoom(value) { const next=Math.max(5,Math.min(100,value)); if(next===currentRange) return; updateRange(next); render(latestAircraft); clearTimeout(zoomTimer); zoomTimer=setTimeout(loadAircraft,250); }
 const pointers=new Map(); let pinchStartDistance=0; let pinchStartRange=currentRange;
@@ -70,6 +74,6 @@ radar.addEventListener('wheel',event=>{ event.preventDefault(); applyZoom(curren
 radar.addEventListener('pointerdown',event=>{ pointers.set(event.pointerId,event); radar.setPointerCapture(event.pointerId); if(pointers.size===2){pinchStartDistance=pointerDistance(); pinchStartRange=currentRange;} });
 radar.addEventListener('pointermove',event=>{ if(!pointers.has(event.pointerId)) return; pointers.set(event.pointerId,event); if(pointers.size===2 && pinchStartDistance) applyZoom(pinchStartRange*pinchStartDistance/pointerDistance()); });
 ['pointerup','pointercancel','pointerleave'].forEach(type=>radar.addEventListener(type,event=>{ pointers.delete(event.pointerId); if(pointers.size<2){pinchStartDistance=0; pinchStartRange=currentRange;} }));
-document.querySelector('#refreshBtn').addEventListener('click',loadAircraft); document.querySelector('#centerBtn').addEventListener('click',()=>{radar.scrollIntoView({behavior:'smooth',block:'center'});});
+document.querySelector('#refreshBtn').addEventListener('click',loadAircraft); document.querySelector('#geoBtn').addEventListener('click',enableGeolocation); document.querySelector('#centerBtn').addEventListener('click',()=>{radar.scrollIntoView({behavior:'smooth',block:'center'});});
 updateRange(currentRange);
 loadAircraft(); setInterval(loadAircraft,10000);
