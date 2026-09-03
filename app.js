@@ -6,7 +6,28 @@ const radar = document.querySelector('#radar');
 const selected = { value: null };
 function cleanFlight(a) { return (a.flight || a.callsign || a.hex || 'UNKNOWN').trim(); }
 function distanceNm(lat, lon) { const r=3440.069, dLat=(lat-FRA.lat)*Math.PI/180, dLon=(lon-FRA.lon)*Math.PI/180; const x=dLon*Math.cos((lat+FRA.lat)*Math.PI/360); return Math.sqrt(x*x+dLat*dLat)*r; }
-function aircraftType(a) { return a.category === 'A5' || a.category === 'A6' ? 'CARGO' : a.category === 'A7' ? 'OTHER' : 'COMMERCIAL'; }
+function aircraftType(a) {
+  const t=(a.t || '').toUpperCase();
+  if (/^(H|R22|R44|EC20|EC30|EC35|EC45|AS50|AS55|AW10|B06|B407|B412)/.test(t)) return 'HELICOPTER';
+  if (/^(BALL|BALO|BLN|ZEPH)/.test(t)) return 'AIR BALLOON';
+  if (/^(UAV|RQ|MQ|TB2|WZ10|X9)/.test(t)) return 'UAV';
+  if (/^(F16|F15|F18|F22|F35|EUFI|RFAL|RAFA|GRIP|MIR4|TORN|SU27|MIG|K35R|K35)/.test(t)) return 'MILITARY JET';
+  if (/^(C17|C5|C5M|C130|A400|KC10|KC13|KC46|E3|E8|IL76|AN12|AN26)/.test(t)) return 'MILITARY TRANSPORT';
+  if (/^(C1[0-9]{2}|C172|C150|C152|PA|SR|DA|DV20|E55P|FA7X|GLEX|LJ35|PC12|P28A|RV|TBM)/.test(t) || /^A[01]$/.test(a.category || '')) return 'PRIVATE';
+  return 'COMMERCIAL';
+}
+function aircraftIcon(kind) {
+  const paths={
+    'COMMERCIAL':'<path d="M12 2.5c.8 0 1.2.7 1.3 1.5l.8 6.1 5.1 2.4c.5.2.8.6.8 1.1v.7l-6.2-1.1-.7 7.3 2.1 1.2v.8H8.8v-.8l2.1-1.2-.7-7.3L4 14.3v-.7c0-.5.3-.9.8-1.1l5.1-2.4.8-6.1c.1-.8.5-1.5 1.3-1.5Z"/>',
+    'PRIVATE':'<path d="m12 2 1.5 7.2 7.2 3.2v1.2l-6.5-.4-1.3 7.3 2 1.2v.8H9.1v-.8l2-1.2-1.3-7.3-6.5.4v-1.2l7.2-3.2L12 2Z"/>',
+    'MILITARY JET':'<path d="m12 2 1.7 7.2 7.3 2.8v1.5l-6.5.4 2.4 6.5-1.1.6-3.8-4-3.8 4-1.1-.6 2.4-6.5-6.5-.4V12l7.3-2.8L12 2Z"/>',
+    'MILITARY TRANSPORT':'<path d="M11 2h2l1.1 7.5 5.2 2.2c.5.2.7.6.7 1.1v1l-5.7-.3 1.3 7.5-2.6-1.4L12 16l-1 3.6-2.6 1.4 1.3-7.5-5.7.3v-1c0-.5.2-.9.7-1.1l5.2-2.2L11 2Z"/>',
+    'HELICOPTER':'<path d="M4 5h16v1.3H4zM11 6.3h2v5.2h2.4c1.8 0 3.1 1.3 3.1 3.1v1.1h-1.5v-1.1c0-1-.6-1.6-1.6-1.6H13v4.5h3v1.4H8v-1.4h3V13H8.2c-1 0-1.6.6-1.6 1.6v1.1H5.1v-1.1c0-1.8 1.3-3.1 3.1-3.1H11V6.3Z"/>',
+    'AIR BALLOON':'<path d="M12 2c4.1 0 6.5 2.8 6.5 6.3 0 3.5-2.4 5.8-5.4 6.5l.5 2.2h1.3v1.4H9.1V17h1.3l.5-2.2c-3-.7-5.4-3-5.4-6.5C5.5 4.8 7.9 2 12 2Z"/>',
+    'UAV':'<path d="m12 3 2 5.7 6.5 2.1-.4 1.5-6.2-.5 1.9 6.3-1.2.6-2.6-4.5-2.6 4.5-1.2-.6 1.9-6.3-6.2.5-.4-1.5L10 8.7 12 3Z"/>'
+  };
+  return `<svg class="aircraft-icon" viewBox="0 0 24 24" aria-hidden="true">${paths[kind] || paths.COMMERCIAL}</svg>`;
+}
 function pos(a) { const eastNm=(a.lon-FRA.lon)*60*Math.cos(FRA.lat*Math.PI/180), northNm=(a.lat-FRA.lat)*60; return { x:50+(eastNm/80)*50, y:50-(northNm/80)*50 }; }
 function fmtAlt(v) { return typeof v === 'number' ? `${Math.round(v).toLocaleString()} FT` : 'GROUND'; }
 function fmtSpeed(v) { return typeof v === 'number' ? `${Math.round(v)} KT` : '—'; }
@@ -19,8 +40,8 @@ function render(aircraft) {
   positionedAircraft.forEach(a => {
     const p=pos(a), el=document.createElement('button');
     el.className='aircraft'; el.type='button'; el.dataset.hex=a.hex || cleanFlight(a); el.style.left=`${p.x}%`; el.style.top=`${p.y}%`; el.style.setProperty('--rotation', `${a.track || 0}deg`);
-    const type=aircraftType(a); el.style.setProperty('--aircraft-color', type==='CARGO'?'var(--orange)':type==='OTHER'?'#8c9b9a':'var(--green)');
-    el.innerHTML=`<span class="tag">${cleanFlight(a)}</span>`; el.setAttribute('aria-label',`Select aircraft ${cleanFlight(a)}`); el.addEventListener('click',()=>selectAircraft(a,el));
+    const type=aircraftType(a); el.style.setProperty('--aircraft-color', type==='MILITARY JET'||type==='MILITARY TRANSPORT'?'var(--orange)':type==='PRIVATE'?'#8c9b9a':'var(--green)');
+    el.innerHTML=`${aircraftIcon(type)}<span class="tag">${cleanFlight(a)}</span>`; el.setAttribute('aria-label',`Select aircraft ${cleanFlight(a)}`); el.addEventListener('click',()=>selectAircraft(a,el));
     layer.appendChild(el);
   });
   if (selected.value) { const fresh=aircraft.find(a=>(a.hex||cleanFlight(a))===selected.value.hex); if(fresh) selectAircraft(fresh, layer.querySelector(`[data-hex="${CSS.escape(selected.value.hex)}"]`), false); }
